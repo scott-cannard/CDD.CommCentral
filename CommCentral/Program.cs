@@ -1,6 +1,11 @@
-﻿using CommCentral.Connection;
+﻿using CommCentral.SocketAccept;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Text;
+using System.Threading;
+using System.Windows.Forms;
 
 namespace CommCentral
 {
@@ -10,36 +15,69 @@ namespace CommCentral
         const int PORT_PUBLISHER   = 791;
         const int PORT_SUBSCRIBER  = 792;
 
+        private static StringBuilder sbQueueHolder = new StringBuilder();
+        private static StringBuilder sbPublisher = new StringBuilder();
+        private static StringBuilder sbSubscriber = new StringBuilder();
+
         static void Main(string[] args)
         {
-            Program.Print("Main: Beginning execution\n");
+            Console.BufferWidth = 100;
+            Console.SetWindowSize(100, 40);
+            Console.Title = "CDD.CommCentral Connection Manager";
 
             //Listen for QueueHolders
-            Connector qholderHandler = new Connector(ConnectorType.QueueHolder, new IPEndPoint(IPAddress.Parse("127.0.0.1"), PORT_QUEUEHOLDER));
+            Listener qholderListener = new Listener(ListenerType.QueueHolder, new IPEndPoint(IPAddress.Parse("127.0.0.1"), PORT_QUEUEHOLDER), sbQueueHolder);
             //Listen for Publishers
-            Connector publisherHandler = new Connector(ConnectorType.Publisher, new IPEndPoint(IPAddress.Parse("127.0.0.1"), PORT_PUBLISHER));
+            Listener publisherListener = new Listener(ListenerType.Publisher, new IPEndPoint(IPAddress.Parse("127.0.0.1"), PORT_PUBLISHER), sbPublisher);
             //Listen for Subscribers
-            Connector subscriberHandler = new Connector(ConnectorType.Subscriber, new IPEndPoint(IPAddress.Parse("127.0.0.1"), PORT_SUBSCRIBER));
+            Listener subscriberListener = new Listener(ListenerType.Subscriber, new IPEndPoint(IPAddress.Parse("127.0.0.1"), PORT_SUBSCRIBER), sbSubscriber);
 
-            while (!Console.KeyAvailable) ;
-            while (Console.KeyAvailable)
-                Console.ReadKey(true);
+            while (!ConsoleExtensions.CheckForKeypress(ConsoleKey.Escape))
+            {
+                DisplayListenerStatus();
+                Thread.Sleep(250);
+            }
 
-            publisherHandler.RequestStop();
-            subscriberHandler.RequestStop();
-            publisherHandler.Join();
-            subscriberHandler.Join();
+            //Server shutdown
+            publisherListener.RequestStop();
+            subscriberListener.RequestStop();
+            publisherListener.Join();
+            subscriberListener.Join();
+            qholderListener.RequestStop();
+            qholderListener.Join();
 
-            qholderHandler.RequestStop();
-            qholderHandler.Join();
-
-            Program.Print("Main: Terminating\n\n**Press <ENTER> to quit**");
+            DisplayListenerStatus();
+            Console.Out.Write("\n\nPress <Enter> to quit");
             Console.In.ReadLine();
         }
 
-        public static void Print(string content)
+        private static void DisplayListenerStatus()
         {
-            Console.Out.Write(content);
+            List<string> allLines = null;
+            IEnumerable<string> lastNLines = null;
+
+            Console.Clear();
+            
+            //Display qholderListener status
+            Console.Out.WriteLine("QueueHolder Listener:");
+            allLines = sbQueueHolder.ToString().Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            lastNLines = allLines.Skip(Math.Max(0, allLines.Count - 10));
+            for (int i = 0; i < 10; i++)
+                Console.Out.WriteLine(lastNLines.Count() > i ? lastNLines.ElementAt(i) : String.Empty);
+            
+            //Display publisherListener status
+            Console.Out.WriteLine("\n\nPublisher Listener:");
+            allLines = sbPublisher.ToString().Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            lastNLines = allLines.Skip(Math.Max(0, allLines.Count - 10));
+            for (int i = 0; i < 10; i++)
+                Console.Out.WriteLine(lastNLines.Count() > i ? lastNLines.ElementAt(i) : String.Empty);
+
+            //Display subscriberListener status
+            Console.Out.WriteLine("\n\nSubscriber Listener:");
+            allLines = sbSubscriber.ToString().Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            lastNLines = allLines.Skip(Math.Max(0, allLines.Count - 10));
+            for (int i = 0; i < 10; i++)
+                Console.Out.WriteLine(lastNLines.Count() > i ? lastNLines.ElementAt(i) : String.Empty);
         }
     }
 }
