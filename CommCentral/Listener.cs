@@ -1,11 +1,12 @@
-﻿using System;
+﻿using CommCentral.Logging;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
-namespace CommCentral.SocketAccept
+namespace CommCentral
 {
     public enum ListenerType { QueueHolder, Publisher, Subscriber };
 
@@ -16,14 +17,14 @@ namespace CommCentral.SocketAccept
         private TcpListener m_Listener;
         private IPEndPoint m_EndPoint;
         private Thread m_Worker;
-        private StringBuilder m_StatusStream;
+        private EventLogger m_Logger;
 
-        public Listener(ListenerType listenerType, System.Net.IPEndPoint endPoint, StringBuilder statusStream, bool startThreadImmediately = true)
+        public Listener(ListenerType listenerType, System.Net.IPEndPoint endPoint, EventLogger logger, bool startThreadImmediately = true)
         {
             m_TypeEnum = listenerType;
             m_TypeStr = Enum.GetName(typeof(ListenerType), listenerType);
             m_EndPoint = endPoint;
-            m_StatusStream = statusStream;
+            m_Logger = logger;
 
             m_Worker = new Thread(this.Run);
             if (startThreadImmediately)
@@ -86,7 +87,7 @@ namespace CommCentral.SocketAccept
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateStatus(string message)
         {
-            m_StatusStream.AppendLine(DateTime.Now.ToString("M/d/yy H:mm:ss.ffff") + " -- " + message);
+            m_Logger.Record(DateTime.Now.ToString("M/d/yy H:mm:ss.ffff") + " -- " + message);
         }
     }
 }
