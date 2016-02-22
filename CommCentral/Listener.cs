@@ -1,93 +1,40 @@
-﻿using CommCentral.Logging;
+﻿using CDD.CommCentral.Connection;
+using CDD.CommCentral.Logging;
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading;
 
-namespace CommCentral
+namespace CDD.CommCentral
 {
-    public enum ListenerType { QueueHolder, Publisher, Subscriber };
-
     public class Listener
     {
-        private ListenerType m_TypeEnum;
-        private string m_TypeStr;
         private TcpListener m_Listener;
-        private IPEndPoint m_EndPoint;
-        private Thread m_Worker;
+        private ClientManagerBase m_ClientMgr;
         private EventLogger m_Logger;
+        private Component m_ComponentType;
 
-        public Listener(ListenerType listenerType, System.Net.IPEndPoint endPoint, EventLogger logger, bool startThreadImmediately = true)
+        public Listener(IPEndPoint endpoint, Component componentType, EventLogger logger, EventLogger clientLog)
         {
-            m_TypeEnum = listenerType;
-            m_TypeStr = Enum.GetName(typeof(ListenerType), listenerType);
-            m_EndPoint = endPoint;
+            m_Listener = new TcpListener(endpoint);
+            m_ClientMgr = ClientManagerBase.GetInstance(componentType, logger, clientLog);
             m_Logger = logger;
+            m_ComponentType = componentType;
+            m_Logger.Record(String.Format("ListenerManager<{0}> initialized", componentType));
 
-            m_Worker = new Thread(this.Run);
-            if (startThreadImmediately)
-                m_Worker.Start();
-        }
-
-        private void Run()
-        {
-            UpdateStatus("Worker thread is now running");
-
-            m_Listener = new TcpListener(m_EndPoint);
             m_Listener.Start();
-            UpdateStatus("Listener started");
+            m_Logger.Record(String.Format("ListenerManager<{0}> TcpListener started", componentType));
 
-            while (m_StayAlive)
-            {
-                UpdateStatus("Waiting for connection request on port " + m_EndPoint.Port);
-                try
-                {
-                    m_Listener.AcceptSocket();
-                }
-                catch (SocketException ex)
-                {
-                    UpdateStatus(ex.Message);
-                    continue;
-                }
-                UpdateStatus("Received connection request");
+            m_Listener.BeginAcceptTcpClient(new AsyncCallback(m_ClientMgr.OnAccept), m_Listener);
+            m_Logger.Record(String.Format("ListenerManager<{0}> now accepting clients on port {1}", componentType, endpoint.Port));
+        }
 
-                //TODO: Process incoming connection request
-                UpdateStatus("TODO - Process incoming connection request");
-            }
-            //Clean up
+        public void Shutdown()
+        {
             m_Listener.Stop();
-            UpdateStatus("Listener stopped");
-        }
+            m_Logger.Record(String.Format("ListenerManager<{0}> TcpListener stopped", m_ComponentType));
+            m_Listener.Server.Close();
 
-        private volatile bool m_StayAlive = true;
-        public void RequestStop()
-        {
-            m_StayAlive = false;
-            m_Listener.Stop();
-        }
-        public void Join()
-        {
-            m_Worker.Join();
-            UpdateStatus("Worker has terminated");
-        }
-        public bool Join(int msTimeout)
-        {
-            if (m_Worker.Join(msTimeout))
-            {
-                UpdateStatus("Worker has terminated");
-                return true;
-            }
-            //else
-            UpdateStatus("Thread join timed out, worker has gone rogue!");
-            return false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateStatus(string message)
-        {
-            m_Logger.Record(DateTime.Now.ToString("M/d/yy H:mm:ss.ffff") + " -- " + message);
+            m_ClientMgr.Shutdown();
         }
     }
 }

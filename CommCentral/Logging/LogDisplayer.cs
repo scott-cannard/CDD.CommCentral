@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace CommCentral.Logging
+namespace CDD.CommCentral.Logging
 {
     public class LogDisplayer
     {
@@ -20,14 +17,20 @@ namespace CommCentral.Logging
 
         public void PrintLog(Object sender, EventArgs e)
         {
-            string[] eventRecords = (e as LoggingEventArgs).EventsArray;
+            string[] lines = (e as LoggingEventArgs).StringArray;
+            uint maxLines = (e as LoggingEventArgs).DisplayHeight;
 
             lock (consoleWriteLock)
             {
                 Console.SetCursorPosition(0, m_CursorStartRow);
                 Console.Out.WriteLine(m_Header);
-                for (int i = 0; i < 10; i++)
-                    Console.Out.WriteLine((eventRecords.Count() > i ? eventRecords[i] : String.Empty).PadRight(Console.BufferWidth - 1));
+                for (int i = 0; i < maxLines; i++)
+                {
+                    if (i < lines.Count())
+                        Console.Out.WriteLine(lines[i].PadRight(Console.BufferWidth - 1));
+                    else
+                        Console.Out.WriteLine(new String(' ', Console.BufferWidth - 1));
+                }
             }
         }
 

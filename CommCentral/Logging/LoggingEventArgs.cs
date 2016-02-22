@@ -1,9 +1,10 @@
 ﻿using System;
 
-namespace CommCentral.Logging
+namespace CDD.CommCentral.Logging
 {
     public class LoggingEventArgs : EventArgs
     {
-        public string[] EventsArray { get; set; }
+        public string[] StringArray { get; set; }
+        public uint DisplayHeight { get; set; }
     }
 }
