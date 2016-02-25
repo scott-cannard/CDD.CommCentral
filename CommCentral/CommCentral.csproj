@@ -32,6 +32,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="ConsoleLogger">
+      <HintPath>..\..\ConsoleLogger\ConsoleLogger\bin\Debug\ConsoleLogger.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Windows.Forms" />
@@ -42,21 +45,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ClientManagers\ClientManager_Publishers.cs" />
-    <Compile Include="ClientManagers\ClientManager_QueueHolders.cs" />
-    <Compile Include="ClientManagers\ClientManager_Subscribers.cs" />
-    <Compile Include="ClientManagers\IClientManager.cs" />
-    <Compile Include="Clients\ClientBase.cs" />
-    <Compile Include="Clients\IClient.cs" />
-    <Compile Include="Clients\QueueHolderClient.cs" />
-    <Compile Include="Listener.cs" />
-    <Compile Include="ClientManagers\ClientManagerBase.cs" />
+    <Compile Include="Helpers\BuffMgr.cs" />
+    <Compile Include="Clients\ClientManager.cs" />
+    <Compile Include="Clients\ClientManager_Subscriber.cs" />
+    <Compile Include="Clients\ClientManager_Publisher.cs" />
+    <Compile Include="Clients\ClientManager_MessageHost.cs" />
     <Compile Include="Helpers\ConsoleExtensions.cs" />
-    <Compile Include="Logging\LogDisplayer.cs" />
-    <Compile Include="Logging\LoggingEventArgs.cs" />
+    <Compile Include="Helpers\CDDMessage.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Logging\EventLogger.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

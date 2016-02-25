@@ -1,21 +1,21 @@
-﻿using CDD.CommCentral.Connection;
+﻿using CDD.CommCentral.Clients;
 using CDD.CommCentral.Logging;
 using System;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 
 namespace CDD.CommCentral
 {
     class Program
     {
-        const int LISTENPORT_QUEUEHOLDER = 790;
-        const int LISTENPORT_PUBLISHER   = 791;
-        const int LISTENPORT_SUBSCRIBER  = 792;
+        private static readonly int LISTENPORT = 790;
+        internal static ManualResetEvent connectionAccepted = new ManualResetEvent(false);
 
-        private static EventLogger Logger_CnxnMgr = new EventLogger(new LogDisplayer(0, "Connection Manager:").PrintLog, 20);
-        private static EventLogger Logger_QHClients = new EventLogger(new LogDisplayer(23, "QueueHolder Clients:").PrintLog, 10);
-        //private static EventLogger Logger_PubClients = new EventLogger(new LogDisplayer(13, "Publisher Clients:").PrintLog, 10);
-        //private static EventLogger Logger_SubClients = new EventLogger(new LogDisplayer(26, "Subscriber Clients:").PrintLog, 10);
+        private static ConsoleLogger Logger_CnxnMgr = new ConsoleLogger(0, "Connection Manager:", 20, true);
+        private static ConsoleLogger Logger_MHClients = new ConsoleLogger(23, "MessageHost Clients:", 10);
+
+        private static ClientManager clientManager = new ClientManager(Logger_CnxnMgr, Logger_MHClients);
 
         static void Main(string[] args)
         {
@@ -23,35 +23,40 @@ namespace CDD.CommCentral
             Console.SetWindowSize(120, 40);
             Console.Title = "CDD.CommCentral Connection Manager";
 
-            //Create listeners
-            Listener SM_QueueHolders = new Listener(new IPEndPoint(IPAddress.Loopback, LISTENPORT_QUEUEHOLDER),
-                                                              Component.QueueHolder,
-                                                              Logger_CnxnMgr, Logger_QHClients);
-            Logger_QHClients.Replace("");
+            Thread listenerThread = new Thread(() => {
+                IPEndPoint listenerEP = new IPEndPoint(IPAddress.Loopback, LISTENPORT);
+                TcpListener listener = new TcpListener(listenerEP);
+                listener.Start();
+                Logger_CnxnMgr.Record(String.Format("TcpListener started; Waiting for connections [{0}:{1}]>--", listenerEP.Address, listenerEP.Port));
 
-            Listener SM_Publishers = new Listener(new IPEndPoint(IPAddress.Loopback, LISTENPORT_PUBLISHER),
-                                                            Component.Publisher,
-                                                            Logger_CnxnMgr, null);
+                bool continueListening = true;
+                while (continueListening)
+                {
+                    connectionAccepted.Reset();
+                    listener.BeginAcceptTcpClient(new AsyncCallback(clientManager.OnAccept), listener);
+                    
+                    while (!connectionAccepted.WaitOne(100))
+                    {
+                        if (ConsoleExtensions.CheckForKeypress(ConsoleKey.Escape))
+                        {
+                            listener.Stop();
+                            continueListening = false;
+                            break;
+                        }
+                    }
+                }
+            });
+            listenerThread.Start();
+            Thread.Sleep(1);
 
-            Listener SM_Subscribers = new Listener(new IPEndPoint(IPAddress.Loopback, LISTENPORT_SUBSCRIBER),
-                                                             Component.Subscriber,
-                                                             Logger_CnxnMgr, null);
-            
-            //Spin
-            //Thread.CurrentThread.Suspend();
-            while (!ConsoleExtensions.CheckForKeypress(ConsoleKey.Escape))
-            {
-                Thread.Sleep(100);
-            }
+            //Wait for listener thread to terminate, then shutdown
+            listenerThread.Join();
+            clientManager.GracefulShutdown();
 
-            //Server shutdown
-            SM_Publishers.Shutdown();
-            SM_Subscribers.Shutdown();
-            SM_QueueHolders.Shutdown();
 
+            //User-friendly pause before exiting debug mode
             if (System.Diagnostics.Debugger.IsAttached)
             {
-                //User-friendly pause before exiting debug mode
                 Console.SetCursorPosition(0, Console.WindowHeight - 1);
                 Console.Out.Write("Press <Enter> to quit");
                 Console.In.ReadLine();
